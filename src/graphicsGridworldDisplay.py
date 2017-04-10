@@ -16,7 +16,7 @@ class GraphicsGridworldDisplay:
 
     def displayQValues(self, agent, currentState=None, message='Agent Q-Values'):
         qValues = util.Counter()
-        states = self.gridworld.getStates()
+        states = self.gridworld.getPositionStates()
         for state in states:
             for action in self.gridworld.getPossibleActions(state):
                 qValues[(state, action)] = agent.getQValue(state, action)
@@ -56,7 +56,7 @@ def drawQValues(gridworld, qValues, currentState=None, message='State-Action Q-V
     grid = gridworld
     blank()
     stateCrossActions = [[(state, action) for action in gridworld.getPossibleActions(state)] for state in
-                         gridworld.getStates()]
+                         gridworld.getPositionStates()]
     print stateCrossActions
     qStates = reduce(lambda x, y: x + y, stateCrossActions, [])
     print qStates
