@@ -3,18 +3,7 @@ import util
 from qlearningAgents import *
 from enum import IntEnum
 import graphicsGridworldDisplay
-
-
-class Obstacle(IntEnum):
-    EMPTY = 0
-    PARKED_CAR = 1
-    OPPOSITE_LANE_CAR = 2
-    OVERTAKING_CAR_1 = 3
-    OVERTAKING_CAR_2 = 4
-    PEDESTRIAN = 5
-    TRAFFIC_RED = 6
-    TRAFFIC_GREEN = 7
-    TRAFFIC_YELLOW = 8
+from graphicsGridworldDisplay import Obstacle
 
 
 class Gridworld():
@@ -35,6 +24,7 @@ class Gridworld():
         self.trafficState = self.getCurrentTrafficState()
         self.parkedCarState = self.getCurrentParkedCarState()
         self.overtakingCarState = self.getCurrentOvertakingCarState()
+        self.crashed = False
 
     def makeGrid(self):
         self.data[self.width - 1][self.height - 1] = 10
@@ -115,8 +105,10 @@ class Gridworld():
 
         if state == Obstacle.PEDESTRIAN:
             if action == 'forward':
+                self.crashed = True
                 return -10
             if action == 'left' or action == 'right':
+                self.crashed = True
                 return -5
             if action == 'stop':
                 return 5
@@ -131,6 +123,7 @@ class Gridworld():
 
         if state == Obstacle.TRAFFIC_RED:
             if action == 'forward':
+                self.crashed = True
                 return -7
             if action == 'left' or action == 'right':
                 return -7
@@ -154,6 +147,7 @@ class Gridworld():
 
         if state == Obstacle.PARKED_CAR:
             if action == 'forward':
+                self.crashed = True
                 return -8
             if action == 'left':
                 return 3
@@ -188,6 +182,7 @@ class Gridworld():
         if pos == -1:
             if speed == 1:
                 if action == careful:
+                    self.crashed = True
                     return -10
                 if action == 'forward':
                     return 2
@@ -210,6 +205,7 @@ class Gridworld():
                     return -3
             if speed == 2:
                 if action == careful:
+                    self.crashed = True
                     return -10
                 if action == 'forward':
                     return 2
@@ -290,14 +286,15 @@ class Gridworld():
     def getCurrentPedestrianState(self):
         state = self.state
         if state[1] < self.height - 1:
-            if self.data[state[0]][state[1] + 1] == Obstacle.PEDESTRIAN:
-                return Obstacle.PEDESTRIAN
+            for i in range(self.width):
+                if self.data[i][state[1] + 1] == Obstacle.PEDESTRIAN:
+                    return Obstacle.PEDESTRIAN
         return Obstacle.EMPTY
 
     def getCurrentTrafficState(self):
         state = self.state
         if state[1] < self.height - 1:
-            if self.data[state[0]][state[1] + 1] in (Obstacle.TRAFFIC_GREEN, Obstacle.TRAFFIC_RED, Obstacle.TRAFFIC_YELLOW):
+            if self.data[self.width - 1][state[1] + 1] in (Obstacle.TRAFFIC_GREEN, Obstacle.TRAFFIC_RED, Obstacle.TRAFFIC_YELLOW):
                 return self.data[state[0]][state[1] + 1]
         return Obstacle.EMPTY
 
@@ -360,7 +357,7 @@ class Gridworld():
 
         for nextState, prob in successors:
             sum += prob
-            if sum > 1.0:
+            if sum > 1.1:
                 raise 'Total transition probability more than one; sample failure.'
             if rand < sum:
                 actionTaken = self.inferAction(state, nextState)
@@ -383,6 +380,54 @@ class Gridworld():
 
     def reset(self):
         self.state = self.getStartState()
+
+    def updateOppositeLaneCarsPositions(self):
+        for i in range(2):
+            for j in range(self.height):
+                if self.data[i][j] == Obstacle.OPPOSITE_LANE_CAR:
+                    self.data[i][j] = Obstacle.EMPTY
+                    if j-i-1 >= 0:
+                        self.data[i][j-i-1] = Obstacle.OPPOSITE_LANE_CAR
+
+    def generateOppositeLaneCars(self):
+        self.updateOppositeLaneCarsPositions()
+
+        if util.flipCoin(0.15): # Generate a car in opposite two lanes
+            if util.flipCoin(0.5): # Generate in slow lane
+                self.data[0][self.height-1] = Obstacle.OPPOSITE_LANE_CAR
+            else: # Generate in fast lane
+                if util.flipCoin(0.5):
+                    self.data[1][self.height-1] = Obstacle.OPPOSITE_LANE_CAR
+                else:
+                    self.data[1][self.height-2] = Obstacle.OPPOSITE_LANE_CAR
+
+    def updatePedestriansPositions(self):
+        for j in range(self.height):
+            for i in range(4):
+                if self.data[i][j] == Obstacle.PEDESTRIAN:
+                    self.data[i][j] = Obstacle.EMPTY
+                    if i + 1 < self.width:
+                        self.data[i + 1][j] = Obstacle.PEDESTRIAN
+                        print 'Relocating pedestrian to ', i+1, j
+                        break
+
+    def generatePedestrians(self):
+        self.updatePedestriansPositions()
+
+        if util.flipCoin(0.2): # Generate a car in opposite two lanes
+            y = random.randint(0, self.height - 1)
+            alreadyPresent = False
+            for i in range(self.width):
+                if self.data[i][y] == Obstacle.PEDESTRIAN:
+                    alreadyPresent = True
+                    break
+            if not alreadyPresent:
+                print 'Generating pedestrian at row ', y
+                self.data[0][y] = Obstacle.PEDESTRIAN
+
+    def generateRandomObstacles(self):
+        self.generateOppositeLaneCars()
+        self.generatePedestrians()
 
     def runEpisode(self, agent, episode, display):
 
@@ -423,3 +468,6 @@ class Gridworld():
                   "\nGot reward: " + str(rewards) + "\n")
             # UPDATE LEARNER
             agent.update(state, pedestrianState, trafficState, parkedCarState, overtakingCarState, actionTaken, nextStates, rewards)
+
+            # Generate random obstacles
+            self.generateRandomObstacles()

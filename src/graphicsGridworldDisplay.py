@@ -1,5 +1,18 @@
 import util
 from graphicsUtils import *
+from enum import IntEnum
+
+
+class Obstacle(IntEnum):
+    EMPTY = 0
+    PARKED_CAR = 1
+    OPPOSITE_LANE_CAR = 2
+    OVERTAKING_CAR_1 = 3
+    OVERTAKING_CAR_2 = 4
+    PEDESTRIAN = 5
+    TRAFFIC_RED = 6
+    TRAFFIC_GREEN = 7
+    TRAFFIC_YELLOW = 8
 
 
 class GraphicsGridworldDisplay:
@@ -21,12 +34,18 @@ class GraphicsGridworldDisplay:
             for action in self.gridworld.getPossibleActions(state):
                 qValues[(state, action)] = agent.getQValue(state, action)
         drawQValues(self.gridworld, qValues, currentState, message)
-        sleep(0.25 / self.speed)
+        sleep(0.3 / self.speed)
 
 
 BACKGROUND_COLOR = formatColor(0, 0.5, 0)
-EDGE_COLOR = formatColor(1, 1, 1)
+EDGE_COLOR = formatColor(0.1, 0.1, 0.1)
 OBSTACLE_COLOR = formatColor(0.5, 0.5, 0.5)
+OPPOSITE_LANE_CAR_COLOR = formatColor(1, 0, 0)
+TRAFFIC_RED_COLOR = formatColor(1, 0, 0)
+TRAFFIC_GREEN_COLOR = formatColor(0, 1, 0)
+PARKED_CAR_COLOR = formatColor(1, 1, 0)
+PEDESTRIAN_COLOR = formatColor(1, 0.62, 0)
+OVERTAKING_CAR_COLOR = formatColor(1, 0, 1)
 TEXT_COLOR = formatColor(1, 1, 1)
 MUTED_TEXT_COLOR = formatColor(0.7, 0.7, 0.7)
 LOCATION_COLOR = formatColor(0, 0, 1)
@@ -91,6 +110,8 @@ def drawQValues(gridworld, qValues, currentState=None, message='State-Action Q-V
                 drawSquare(x, y, value, minValue, maxValue, valString, action, False, isExit, isCurrent)
             else:
                 drawSquareQ(x, y, q, minValue, maxValue, valStrings, actions, isCurrent)
+
+            drawObstacles(x, y, gridType)
     pos = to_screen(((grid.width - 1.0) / 2.0, - 0.8))
     text(pos, TEXT_COLOR, message, "Courier", -28, "bold", "c")
 
@@ -183,6 +204,26 @@ def drawSquare(x, y, val, min, max, valStr, action, isObstacle, isTerminal, isCu
     if not isObstacle:
         # print 'valStr: ', valStr
         text((screen_x, screen_y), text_color, valStr, "Courier", -26, "bold", "c")
+
+
+def drawObstacles(x, y, gridType):
+    (screen_x, screen_y) = to_screen((x, y))
+
+    if gridType == Obstacle.OPPOSITE_LANE_CAR:
+        color = OPPOSITE_LANE_CAR_COLOR
+    elif gridType == Obstacle.TRAFFIC_RED:
+        color = TRAFFIC_RED_COLOR
+    elif gridType == Obstacle.TRAFFIC_GREEN:
+        color = TRAFFIC_GREEN_COLOR
+    elif gridType == Obstacle.OVERTAKING_CAR_1 or gridType == Obstacle.OVERTAKING_CAR_2:
+        color = OVERTAKING_CAR_COLOR
+    elif gridType == Obstacle.PARKED_CAR:
+        color = PARKED_CAR_COLOR
+    elif gridType == Obstacle.PEDESTRIAN:
+        color = PEDESTRIAN_COLOR
+    else:
+        return
+    circle((screen_x, screen_y), 0.1 * GRID_SIZE, color, fillColor=LOCATION_COLOR)
 
 
 def drawSquareQ(x, y, qVals, minVal, maxVal, valStrs, bestActions, isCurrent):
