@@ -11,10 +11,12 @@ class Gridworld():
     Gridworld
   """
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, model):
         self.width = width
         self.height = height
+        self.model = model
         self.data = [[Obstacle.EMPTY for y in range(height)] for x in range(width)]
+        self.duration = [[0 for y in range(height)] for x in range(width)]
         self.terminalState = 'TERMINAL_STATE'
         self.noise = 0.2
         self.state = (3, 0)
@@ -126,6 +128,7 @@ class Gridworld():
                 self.crashed = True
                 return -7
             if action == 'left' or action == 'right':
+                self.crashed = True
                 return -7
             if action == 'stop':
                 return 5
@@ -293,9 +296,10 @@ class Gridworld():
 
     def getCurrentTrafficState(self):
         state = self.state
-        if state[1] < self.height - 1:
-            if self.data[self.width - 1][state[1] + 1] in (Obstacle.TRAFFIC_GREEN, Obstacle.TRAFFIC_RED, Obstacle.TRAFFIC_YELLOW):
-                return self.data[state[0]][state[1] + 1]
+        y = state[1]
+        if y < self.height - 1:
+            if self.data[self.width - 1][y + 1] in (Obstacle.TRAFFIC_GREEN, Obstacle.TRAFFIC_RED, Obstacle.TRAFFIC_YELLOW):
+                return self.data[self.width - 1][y + 1]
         return Obstacle.EMPTY
 
     def getCurrentParkedCarState(self):
@@ -352,6 +356,7 @@ class Gridworld():
         state = self.getCurrentState()
         pedestrianState = self.getCurrentPedestrianState()
         trafficState = self.getCurrentTrafficState()
+        print 'Traffic state: ', trafficState
         parkedCarState = self.getCurrentParkedCarState()
         overtakingCarState = self.getCurrentOvertakingCarState()
 
@@ -414,7 +419,7 @@ class Gridworld():
     def generatePedestrians(self):
         self.updatePedestriansPositions()
 
-        if util.flipCoin(0.2): # Generate a car in opposite two lanes
+        if util.flipCoin(0.4): # Generate a car in opposite two lanes
             y = random.randint(0, self.height - 1)
             alreadyPresent = False
             for i in range(self.width):
@@ -425,9 +430,104 @@ class Gridworld():
                 print 'Generating pedestrian at row ', y
                 self.data[0][y] = Obstacle.PEDESTRIAN
 
+    def updateParkedCarsPositions(self):
+        for j in range(self.height):
+            if self.data[3][j] == Obstacle.PARKED_CAR:
+                if self.duration[3][j] >= 10:
+                    self.duration[3][j] = 0
+                    self.data[3][j] = Obstacle.OVERTAKING_CAR_1
+                else:
+                    self.duration[3][j] += 1
+
+    def generateParkedCars(self):
+        self.updateParkedCarsPositions()
+
+        if util.flipCoin(0.2):
+            y = random.randint(1, self.height - 2)
+            alreadyPresent = False
+            if self.data[3][y-1] == Obstacle.PARKED_CAR or self.data[3][y] == Obstacle.PARKED_CAR or self.data[3][y+1] == Obstacle.PARKED_CAR:
+                alreadyPresent = True
+            if not alreadyPresent:
+                print 'Generating parked car at row ', y
+                self.data[3][y] = Obstacle.PARKED_CAR
+
+    def updateTrafficSignal(self):
+        for j in range(self.height):
+            if self.data[3][j] == Obstacle.TRAFFIC_RED:
+                if self.duration[3][j] >= 20:
+                    self.duration[3][j] = 0
+                    self.data[3][j] = Obstacle.TRAFFIC_GREEN
+                else:
+                    self.duration[3][j] += 1
+            elif self.data[3][j] == Obstacle.TRAFFIC_GREEN:
+                if self.duration[3][j] >= 10:
+                    self.duration[3][j] = 0
+                    self.data[3][j] = Obstacle.EMPTY
+                else:
+                    self.duration[3][j] += 1
+
+    def generateTrafficSignal(self):
+        self.updateTrafficSignal()
+
+        if util.flipCoin(0.4):
+            y = random.randint(3, self.height - 2)
+            alreadyPresent = False
+            for j in range(self.height):
+                if self.data[3][j] == Obstacle.TRAFFIC_RED:
+                    alreadyPresent = True
+            if not alreadyPresent:
+                print 'Generating traffic red signal at row ', y
+                self.data[3][y] = Obstacle.TRAFFIC_RED
+
+    def updateOvertakingCarsPositions(self):
+        for j in reversed(range(self.height)):
+            for i in range(4):
+                if self.data[i][j] == Obstacle.OVERTAKING_CAR_1:
+                    self.data[i][j] = Obstacle.EMPTY
+                    if j + 1 < self.height:
+                        self.data[i][j + 1] = Obstacle.OVERTAKING_CAR_1
+                        print 'Relocating overtaking_car_1 to ', i, j + 1
+                elif self.data[i][j] == Obstacle.OVERTAKING_CAR_2:
+                    self.data[i][j] = Obstacle.EMPTY
+                    if j + 2 < self.height:
+                        self.data[i][j + 2] = Obstacle.OVERTAKING_CAR_2
+                        print 'Relocating overtaking_car_2 to ', i, j + 2
+
+    def generateOvertakingCars(self):
+        self.updateOvertakingCarsPositions()
+
+        if util.flipCoin(0.5):
+            if util.flipCoin(0.8):
+                x = 2
+            else:
+                x = 3
+            y = random.randint(0, self.height - 2)
+            alreadyPresent = False
+            if self.data[x][y-1] != Obstacle.EMPTY or self.data[x][y] != Obstacle.EMPTY or self.data[x][y+1] != Obstacle.EMPTY:
+                alreadyPresent = True
+            if not alreadyPresent:
+                print 'Generating overtaking car at row ', y, ' and col ', x
+                if x == 2:
+                    self.data[x][y] = Obstacle.OVERTAKING_CAR_2
+                else:
+                    self.data[x][y] = Obstacle.OVERTAKING_CAR_1
+
     def generateRandomObstacles(self):
         self.generateOppositeLaneCars()
-        self.generatePedestrians()
+        if self.model == 'all' or self.model == 'pedestrian':
+            self.generatePedestrians()
+        if self.model == 'all' or self.model == 'parked_car':
+            self.generateParkedCars()
+        if self.model == 'all' or self.model == 'overtaking_car':
+            self.generateOvertakingCars()
+        if self.model == 'all' or self.model == 'traffic_signal':
+            self.generateTrafficSignal()
+
+    def clearAllObstacles(self):
+        for i in range(self.width):
+            for j in range(self.height):
+                self.data[i][j] = Obstacle.EMPTY
+                self.duration[i][j] = 0
 
     def runEpisode(self, agent, episode, display):
 
@@ -435,6 +535,8 @@ class Gridworld():
         totalDiscount = 1.0
         self.reset()
         display.start()
+
+        self.clearAllObstacles()
 
         print ("Starting Episode: " + str(episode) + "\n")
         while True:
@@ -468,6 +570,12 @@ class Gridworld():
                   "\nGot reward: " + str(rewards) + "\n")
             # UPDATE LEARNER
             agent.update(state, pedestrianState, trafficState, parkedCarState, overtakingCarState, actionTaken, nextStates, rewards)
+
+            # If there's a crash, end the episode
+            if self.crashed:
+                self.crashed = False
+                print 'Car crashed with some obstacle! Ending episode..'
+                return returns
 
             # Generate random obstacles
             self.generateRandomObstacles()

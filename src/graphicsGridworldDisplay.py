@@ -34,7 +34,7 @@ class GraphicsGridworldDisplay:
             for action in self.gridworld.getPossibleActions(state):
                 qValues[(state, action)] = agent.getQValue(state, action)
         drawQValues(self.gridworld, qValues, currentState, message)
-        sleep(0.3 / self.speed)
+        sleep(0.5 / self.speed)
 
 
 BACKGROUND_COLOR = formatColor(0, 0.5, 0)
@@ -45,7 +45,7 @@ TRAFFIC_RED_COLOR = formatColor(1, 0, 0)
 TRAFFIC_GREEN_COLOR = formatColor(0, 1, 0)
 PARKED_CAR_COLOR = formatColor(1, 1, 0)
 PEDESTRIAN_COLOR = formatColor(1, 0.62, 0)
-OVERTAKING_CAR_COLOR = formatColor(1, 0, 1)
+OVERTAKING_CAR_COLOR = formatColor(0, 1, 1)
 TEXT_COLOR = formatColor(1, 1, 1)
 MUTED_TEXT_COLOR = formatColor(0.7, 0.7, 0.7)
 LOCATION_COLOR = formatColor(0, 0, 1)
