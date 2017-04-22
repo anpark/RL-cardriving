@@ -44,7 +44,7 @@ OPPOSITE_LANE_CAR_COLOR = formatColor(1, 0, 0)
 TRAFFIC_RED_COLOR = formatColor(1, 0, 0)
 TRAFFIC_GREEN_COLOR = formatColor(0, 1, 0)
 PARKED_CAR_COLOR = formatColor(1, 1, 0)
-PEDESTRIAN_COLOR = formatColor(1, 0.62, 0)
+PEDESTRIAN_COLOR = formatColor(1, 1, 1)
 OVERTAKING_CAR_COLOR = formatColor(0, 1, 1)
 TEXT_COLOR = formatColor(1, 1, 1)
 MUTED_TEXT_COLOR = formatColor(0.7, 0.7, 0.7)
@@ -223,7 +223,7 @@ def drawObstacles(x, y, gridType):
         color = PEDESTRIAN_COLOR
     else:
         return
-    circle((screen_x, screen_y), 0.1 * GRID_SIZE, color, fillColor=LOCATION_COLOR)
+    circle((screen_x, screen_y), 0.1 * GRID_SIZE, color, fillColor=color)
 
 
 def drawSquareQ(x, y, qVals, minVal, maxVal, valStrs, bestActions, isCurrent):

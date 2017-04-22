@@ -11,7 +11,7 @@ if __name__ == '__main__':
         model = sys.argv[1]
 
     width = 4
-    height = 20
+    height = 16
 
     grid = Gridworld(width, height, model)
     grid.makeGrid()
@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     NumOfEpisode = 20
 
-    display = graphicsGridworldDisplay.GraphicsGridworldDisplay(grid, 40, 1)
+    display = graphicsGridworldDisplay.GraphicsGridworldDisplay(grid, 60, 1)
 
     for episode in range(0, NumOfEpisode):
         grid.runEpisode(agent, episode, display)
